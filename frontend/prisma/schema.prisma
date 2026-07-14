@@ -1,0 +1,73 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("PLAYER")
+  quizzes   Quiz[]
+  createdAt DateTime @default(now())
+  hostGames   GameResult[]   @relation("HostGames")
+  playerGames PlayerResult[] @relation("PlayerGames")
+}
+
+model Quiz {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  category    String?    // НОВОЕ: Категория квиза (например, "IT", "Кино")
+  timeLimit   Int        @default(20) // НОВОЕ: Время на вопрос по умолчанию (в секундах)
+  creatorId   String
+  creator     User       @relation(fields: [creatorId], references: [id])
+  questions   Question[]
+  createdAt   DateTime   @default(now())
+  gameResults GameResult[]
+}
+
+model Question {
+  id             String   @id @default(uuid())
+  text           String
+  imageUrl       String?  // НОВОЕ: Ссылка на картинку (необязательно)
+  type           String   @default("SINGLE") // НОВОЕ: Тип вопроса ("SINGLE" или "MULTIPLE")
+  options        String[]
+  correctAnswers String[] // ИЗМЕНЕНО: Теперь это массив, так как правильных ответов может быть несколько
+  quizId         String
+  quiz           Quiz     @relation(fields: [quizId], references: [id])
+}
+
+model GameResult {
+  id        String   @id @default(uuid())
+  quizId    String
+  quizTitle String   // Сохраняем название квиза, на случай если его удалят
+  hostId    String
+  createdAt DateTime @default(now())
+
+  // Связи
+  host      User     @relation("HostGames", fields: [hostId], references: [id], onDelete: Cascade)
+  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  players   PlayerResult[]
+}
+
+
+
+
+model PlayerResult {
+  id           String     @id @default(uuid())
+  gameResultId String
+  userId       String?    // Опционально: связываем, только если игрок авторизован
+  playerName   String     // Имя, под которым играл
+  score        Int
+  rank         Int
+
+  // Связи
+  gameResult   GameResult @relation(fields: [gameResultId], references: [id], onDelete: Cascade)
+  user         User?      @relation("PlayerGames", fields: [userId], references: [id], onDelete: SetNull)
+}
